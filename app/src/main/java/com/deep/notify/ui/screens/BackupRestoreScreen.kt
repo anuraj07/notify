@@ -70,11 +70,7 @@ fun BackupRestoreScreen(
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Navigate Back")
                     }
                 },
-                actions = {
-                    IconButton(onClick = {}) {
-                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More options")
-                    }
-                }
+
             )
         },
         modifier = modifier.fillMaxSize()

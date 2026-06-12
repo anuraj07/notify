@@ -15,8 +15,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deep.notify.data.Note
@@ -36,7 +38,7 @@ fun AddEditNoteScreen(
     modifier: Modifier = Modifier
 ) {
     var title by remember { mutableStateOf("") }
-    var content by remember { mutableStateOf("") }
+    var contentValue by remember { mutableStateOf(TextFieldValue("")) }
     var selectedColorIndex by remember { mutableStateOf(0) }
     var isPinned by remember { mutableStateOf(false) }
     var category by remember { mutableStateOf("General") }
@@ -45,12 +47,34 @@ fun AddEditNoteScreen(
 
     val context = LocalContext.current
 
+    // Helper function to apply markdown formatting tags at the current cursor / selection
+    val applyFormatting = { prefix: String, suffix: String ->
+        val text = contentValue.text
+        val selection = contentValue.selection
+        val start = selection.min
+        val end = selection.max
+        
+        val selectedText = text.substring(start, end)
+        val newText = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end)
+        
+        val newCursorOffset = if (start == end) {
+            start + prefix.length
+        } else {
+            start + prefix.length + selectedText.length + suffix.length
+        }
+        
+        contentValue = TextFieldValue(
+            text = newText,
+            selection = TextRange(newCursorOffset)
+        )
+    }
+
     // Load Note if editing
     LaunchedEffect(noteId) {
         if (noteId != -1) {
             viewModel.getNoteById(noteId)?.let { note ->
                 title = note.title
-                content = note.content
+                contentValue = TextFieldValue(note.content)
                 selectedColorIndex = note.color
                 isPinned = note.isPinned
                 category = note.category
@@ -70,6 +94,7 @@ fun AddEditNoteScreen(
 
     // Helper function to save the note
     fun saveNote() {
+        val content = contentValue.text
         if (title.isBlank() && content.isBlank()) {
             initialNote?.let { viewModel.deleteNote(it) }
             return
@@ -155,22 +180,29 @@ fun AddEditNoteScreen(
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                         .padding(vertical = 4.dp)
                 ) {
-                    val formattingTip = { text: String ->
-                        Toast.makeText(context, "$text format applied", Toast.LENGTH_SHORT).show()
-                    }
-                    IconButton(onClick = { formattingTip("Bold") }) {
+                    IconButton(onClick = { applyFormatting("**", "**") }) {
                         Icon(imageVector = Icons.Default.FormatBold, contentDescription = "Bold", tint = secondaryTextColor)
                     }
-                    IconButton(onClick = { formattingTip("Italic") }) {
+                    IconButton(onClick = { applyFormatting("*", "*") }) {
                         Icon(imageVector = Icons.Default.FormatItalic, contentDescription = "Italic", tint = secondaryTextColor)
                     }
-                    IconButton(onClick = { formattingTip("List") }) {
+                    IconButton(onClick = {
+                        val start = contentValue.selection.min
+                        val prefix = if (start == 0 || contentValue.text.getOrNull(start - 1) == '\n') "- " else "\n- "
+                        applyFormatting(prefix, "")
+                    }) {
                         Icon(imageVector = Icons.Default.FormatListBulleted, contentDescription = "Bulleted List", tint = secondaryTextColor)
                     }
-                    IconButton(onClick = { formattingTip("Image") }) {
+                    IconButton(onClick = { applyFormatting("![", "](https://)") }) {
                         Icon(imageVector = Icons.Default.Image, contentDescription = "Insert Image", tint = secondaryTextColor)
                     }
-                    IconButton(onClick = { formattingTip("Code") }) {
+                    IconButton(onClick = {
+                        val selection = contentValue.selection
+                        val selectedText = contentValue.text.substring(selection.min, selection.max)
+                        val prefix = if (selectedText.contains("\n")) "\n```\n" else "`"
+                        val suffix = if (selectedText.contains("\n")) "\n```\n" else "`"
+                        applyFormatting(prefix, suffix)
+                    }) {
                         Icon(imageVector = Icons.Default.Code, contentDescription = "Insert Code Block", tint = secondaryTextColor)
                     }
                 }
@@ -264,8 +296,8 @@ fun AddEditNoteScreen(
 
             // Note Content Input
             TextField(
-                value = content,
-                onValueChange = { content = it },
+                value = contentValue,
+                onValueChange = { contentValue = it },
                 placeholder = { Text("Start typing your note...", style = MaterialTheme.typography.bodyLarge, color = secondaryTextColor.copy(alpha = 0.4f)) },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = textColor),
                 colors = TextFieldDefaults.colors(
@@ -281,21 +313,21 @@ fun AddEditNoteScreen(
                     .weight(1f)
             )
 
-            // Stitch Footer Meta
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp)
+                    .padding(vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val dateFormat = SimpleDateFormat("MMM dd, hh:mm a", Locale.getDefault())
                 val lastEditedStr = dateFormat.format(Date(timestamp))
+                val content = contentValue.text
                 val wordCount = if (content.isBlank()) 0 else content.split("\\s+".toRegex()).filter { it.isNotEmpty() }.size
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(imageVector = Icons.Default.History, contentDescription = null, tint = secondaryTextColor, modifier = Modifier.size(16.dp))
@@ -310,7 +342,11 @@ fun AddEditNoteScreen(
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     // Share Button
                     TextButton(onClick = {
                         val sendIntent = Intent().apply {
@@ -328,6 +364,7 @@ fun AddEditNoteScreen(
 
                     // Delete Button
                     if (noteId != -1) {
+                        Spacer(modifier = Modifier.width(8.dp))
                         TextButton(
                             onClick = {
                                 initialNote?.let { viewModel.deleteNote(it) }
