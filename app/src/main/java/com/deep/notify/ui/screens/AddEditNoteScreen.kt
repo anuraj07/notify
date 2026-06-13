@@ -25,6 +25,9 @@ import com.deep.notify.data.Note
 import com.deep.notify.ui.components.ColorPicker
 import com.deep.notify.ui.theme.NoteColorDefault
 import com.deep.notify.ui.theme.NoteColors
+import com.deep.notify.ui.theme.MarkdownVisualTransformation
+import com.deep.notify.ui.theme.PrimaryColor
+import com.deep.notify.ui.theme.OutlineColor
 import com.deep.notify.ui.viewmodel.NoteViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -300,6 +303,12 @@ fun AddEditNoteScreen(
                 onValueChange = { contentValue = it },
                 placeholder = { Text("Start typing your note...", style = MaterialTheme.typography.bodyLarge, color = secondaryTextColor.copy(alpha = 0.4f)) },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = textColor),
+                visualTransformation = remember(noteColor) {
+                    MarkdownVisualTransformation(
+                        primaryColor = PrimaryColor,
+                        outlineColor = OutlineColor
+                    )
+                },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,

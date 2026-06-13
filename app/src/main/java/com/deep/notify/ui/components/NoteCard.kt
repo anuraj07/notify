@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.deep.notify.data.Note
 import com.deep.notify.ui.theme.NoteColorDefault
 import com.deep.notify.ui.theme.NoteColors
+import com.deep.notify.ui.theme.parseMarkdown
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -104,7 +105,7 @@ fun NoteCard(
 
             if (note.content.isNotEmpty()) {
                 Text(
-                    text = note.content,
+                    text = parseMarkdown(note.content, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.outline),
                     color = secondaryTextColor,
                     fontSize = 14.sp,
                     maxLines = 8,
